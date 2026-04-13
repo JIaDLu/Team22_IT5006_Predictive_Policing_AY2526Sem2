@@ -2,8 +2,8 @@ import pandas as pd
 import os
 
 # 配置文件路径
-input_file = 'Crimes_-_2001_to_Present.csv'  # 原始文件名
-output_dir = 'data'
+input_file = '/home/myCourse/it5006/Team22_IT5006_Predictive_Policing_AY2526Sem2/data/origin/Crimes_-_2001_to_Present_20260216.csv'  # 原始文件名
+output_dir = '/home/myCourse/it5006/Team22_IT5006_Predictive_Policing_AY2526Sem2/data/exp_data'
 output_file = os.path.join(output_dir, 'Chicago_Crimes_2015_2025.csv')
 
 # 创建目录

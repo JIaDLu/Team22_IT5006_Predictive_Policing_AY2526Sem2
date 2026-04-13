@@ -2,8 +2,8 @@ import pandas as pd
 import os
 
 # 配置文件路径
-input_file = 'data/Chicago_Crimes_2015_2025.csv'
-output_dir = 'data/quick-viewer'
+input_file = '/home/myCourse/it5006/Team22_IT5006_Predictive_Policing_AY2526Sem2/data/exp_data/Chicago_Crimes_2015_2025.csv'
+output_dir = '/home/myCourse/it5006/Team22_IT5006_Predictive_Policing_AY2526Sem2/data/quick-viewer'
 output_file = os.path.join(output_dir, 'Chicago_Crimes_Quickview.csv')
 
 # 创建目录
