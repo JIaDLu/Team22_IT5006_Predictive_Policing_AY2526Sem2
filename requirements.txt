@@ -1,3 +1,6 @@
 matplotlib==3.10.8
 pandas==3.0.2
 numpy==2.4.4
+torch==2.11.0+cu130
+scikit-learn==1.8.0
+scipy==1.17.1
