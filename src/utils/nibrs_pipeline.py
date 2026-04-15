@@ -106,10 +106,20 @@ def load_nibrs_tables(dataset_dir: str) -> Dict[str, pd.DataFrame]:
                 path = candidates[0]
             else:
                 raise FileNotFoundError(f"Missing {filename} in {dataset_dir}")
-        tables[key] = pd.read_csv(path, low_memory=False)
+        tables[key] = _read_csv_safe(path)
         print(f"  [{key}] {len(tables[key])} rows from {path.name}")
 
     return tables
+
+
+def _read_csv_safe(path) -> pd.DataFrame:
+    """Read CSV with automatic encoding fallback."""
+    for enc in ("utf-8", "latin-1", "cp1252"):
+        try:
+            return pd.read_csv(path, low_memory=False, encoding=enc)
+        except UnicodeDecodeError:
+            continue
+    raise UnicodeDecodeError(f"Cannot decode {path} with utf-8/latin-1/cp1252")
 
 
 # ------------------------------------------------------------------
