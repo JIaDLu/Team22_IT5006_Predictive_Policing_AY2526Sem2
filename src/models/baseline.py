@@ -67,7 +67,7 @@ class BaselineModel(nn.Module):
         B, T, N, F = X.shape
 
         # Flatten spatial dimension: (B, T, N*F)
-        X_flat = X.view(B, T, N * F)
+        X_flat = X.reshape(B, T, N * F)
 
         # Temporal encoding → (B, H)
         h = self.temporal(X_flat)
