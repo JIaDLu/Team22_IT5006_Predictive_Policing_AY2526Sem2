@@ -44,23 +44,15 @@ CRIME_TYPE_MAP = {
     "THEFT": "theft_count",
     "BATTERY": "battery_count",
 }
-LOCATION_TYPE_MAP = {
-    "RESIDENCE": "residence_count",
-    "STREET": "street_count",
-    "APARTMENT": "apartment_count",
-}
 
 COUNT_FEATURES = [
     "crime_count",
     "theft_count",
     "battery_count",
-    "residence_count",
-    "street_count",
-    "apartment_count",
 ]
 TIME_FEATURES = ["day_of_week", "is_weekend", "month"]
 FEATURE_COLS = COUNT_FEATURES + TIME_FEATURES
-NUM_FEATURES = len(FEATURE_COLS)  # 9
+NUM_FEATURES = len(FEATURE_COLS)  # 6
 
 TARGET_COL = "crime_count"
 TARGET_IDX = 0
@@ -90,7 +82,7 @@ MHA_NUM_HEADS = 4
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
 WEIGHT_DECAY = 1e-5
-NUM_EPOCHS = 100
+NUM_EPOCHS = 50
 PATIENCE = 10
 GRAD_CLIP_MAX_NORM = 5.0
 HUBER_DELTA = 1.0

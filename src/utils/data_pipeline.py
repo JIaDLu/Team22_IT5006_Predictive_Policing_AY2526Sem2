@@ -21,7 +21,6 @@ from src.config import (
     COUNT_FEATURES,
     CRIME_TYPE_MAP,
     FEATURE_COLS,
-    LOCATION_TYPE_MAP,
     NUM_REGIONS,
     REGION_IDS,
     TIME_FEATURES,
@@ -60,7 +59,7 @@ def split_by_date(
 # ------------------------------------------------------------------
 REQUIRED_COLS = [
     "ID", "Date", "Community Area", "Primary Type",
-    "Location Description", "Latitude", "Longitude",
+    "Latitude", "Longitude",
 ]
 
 
@@ -97,26 +96,22 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
 def build_daily_features(
     df: pd.DataFrame,
     crime_type_map: Dict[str, str] = CRIME_TYPE_MAP,
-    location_type_map: Dict[str, str] = LOCATION_TYPE_MAP,
 ) -> pd.DataFrame:
     """
     Aggregate raw records → (region_id, date) level features.
     Returns DataFrame with columns:
-        region_id, date, crime_count, theft_count, battery_count,
-        residence_count, street_count, apartment_count
+        region_id, date, crime_count, theft_count, battery_count
     """
     df = df.copy()
     df["date"] = df["Date"].dt.date
     df["region_id"] = df["Community Area"].astype(int)
 
-    # One-hot flags for crime types & locations
+    # One-hot flags for crime types
     for raw_label, col_name in crime_type_map.items():
         df[col_name] = (df["Primary Type"] == raw_label).astype(int)
-    for raw_label, col_name in location_type_map.items():
-        df[col_name] = (df["Location Description"] == raw_label).astype(int)
 
     agg_dict = {"ID": "count"}  # total crime count
-    for col_name in list(crime_type_map.values()) + list(location_type_map.values()):
+    for col_name in crime_type_map.values():
         agg_dict[col_name] = "sum"
 
     agg = df.groupby(["region_id", "date"]).agg(agg_dict).reset_index()
