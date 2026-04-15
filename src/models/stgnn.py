@@ -3,15 +3,15 @@ Spatiotemporal GNN model for crime prediction.
 
 Architecture:
   For each time step t in [0, T):
-      H_t = GNN(X_t, A)          →  (B, N, H)
+      H_t = GNN(X_t, A)                →  (B, N, H_gnn)
   Stack over T:
-      H_seq = stack(H_0 .. H_{T-1})  →  (B, T, N, H)
+      H_seq = stack(H_0 .. H_{T-1})    →  (B, T, N, H_gnn)
   Reshape to per-node sequences:
-      (B*N, T, H)
-  LSTM:
-      → (B*N, H_lstm)
+      (B*N, T, H_gnn)
+  Temporal encoder (LSTM / GRU / MHA):
+      → (B*N, H_temporal)
   Reshape + Linear:
-      → (B, N, 1) → squeeze → (B, N)
+      → (B, N)
 """
 from __future__ import annotations
 
@@ -22,41 +22,32 @@ import torch.nn.functional as F
 from src.config import (
     DROPOUT,
     GNN_HIDDEN_DIM,
-    LSTM_HIDDEN_DIM,
+    MHA_NUM_HEADS,
     NUM_FEATURES,
     NUM_GNN_LAYERS,
     NUM_REGIONS,
+    TEMPORAL_HIDDEN_DIM,
 )
+from src.models.temporal_modules import build_temporal_encoder
 
 
 class GCNLayer(nn.Module):
-    """Single Graph Convolutional layer: H' = σ(A_norm · H · W)."""
+    """Single GCN layer: H' = A_norm @ H @ W + b."""
 
     def __init__(self, in_dim: int, out_dim: int):
         super().__init__()
         self.linear = nn.Linear(in_dim, out_dim, bias=True)
 
     def forward(self, H: torch.Tensor, A: torch.Tensor) -> torch.Tensor:
-        """
-        H : (B, N, F_in)
-        A : (N, N) — pre-normalized adjacency
-        """
-        # A @ H → spatial aggregation, then linear projection
-        support = torch.matmul(A, H)  # (B, N, F_in)
-        out = self.linear(support)     # (B, N, F_out)
-        return out
+        support = torch.matmul(A, H)
+        return self.linear(support)
 
 
 class GNNBlock(nn.Module):
     """Multi-layer GCN with ReLU + dropout between layers."""
 
-    def __init__(
-        self,
-        in_dim: int,
-        hidden_dim: int,
-        num_layers: int = 2,
-        dropout: float = 0.1,
-    ):
+    def __init__(self, in_dim: int, hidden_dim: int, num_layers: int = 2,
+                 dropout: float = 0.1):
         super().__init__()
         layers = []
         for i in range(num_layers):
@@ -66,11 +57,6 @@ class GNNBlock(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, X: torch.Tensor, A: torch.Tensor) -> torch.Tensor:
-        """
-        X : (B, N, F)
-        A : (N, N)
-        Returns: (B, N, hidden_dim)
-        """
         H = X
         for i, layer in enumerate(self.layers):
             H = layer(H, A)
@@ -82,64 +68,61 @@ class GNNBlock(nn.Module):
 
 class STGNN(nn.Module):
     """
-    Spatiotemporal Graph Neural Network.
+    Spatiotemporal Graph Neural Network with configurable temporal encoder.
 
-    Per-timestep GCN → temporal LSTM → linear prediction.
+    Parameters
+    ----------
+    temporal_type : 'lstm' | 'gru' | 'mha'
     """
 
     def __init__(
         self,
+        temporal_type: str = "lstm",
         num_features: int = NUM_FEATURES,
         num_regions: int = NUM_REGIONS,
         gnn_hidden: int = GNN_HIDDEN_DIM,
-        lstm_hidden: int = LSTM_HIDDEN_DIM,
+        temporal_hidden: int = TEMPORAL_HIDDEN_DIM,
         num_gnn_layers: int = NUM_GNN_LAYERS,
         dropout: float = DROPOUT,
+        mha_num_heads: int = MHA_NUM_HEADS,
     ):
         super().__init__()
         self.num_regions = num_regions
         self.gnn_hidden = gnn_hidden
+        self.temporal_type = temporal_type
 
         self.gnn = GNNBlock(num_features, gnn_hidden, num_gnn_layers, dropout)
-        self.lstm = nn.LSTM(
-            input_size=gnn_hidden,
-            hidden_size=lstm_hidden,
-            num_layers=1,
-            batch_first=True,
+
+        # Build temporal encoder
+        extra_kwargs = {}
+        if temporal_type == "mha":
+            extra_kwargs["num_heads"] = mha_num_heads
+        self.temporal = build_temporal_encoder(
+            temporal_type, input_dim=gnn_hidden,
+            hidden_dim=temporal_hidden, dropout=dropout, **extra_kwargs,
         )
-        self.fc = nn.Linear(lstm_hidden, 1)
-        self.dropout = nn.Dropout(dropout)
+        self.fc = nn.Linear(self.temporal.output_dim, 1)
 
     def forward(self, X: torch.Tensor, A: torch.Tensor) -> torch.Tensor:
         """
-        Parameters
-        ----------
-        X : (B, T, N, F) — input feature sequences
-        A : (N, N) — normalized adjacency matrix
-
-        Returns
-        -------
-        Y_hat : (B, N) — predicted crime_count for next day
+        X : (B, T, N, F)
+        A : (N, N)
+        Returns: (B, N)
         """
         B, T, N, F = X.shape
 
-        # 1. Per-timestep GNN
+        # Per-timestep GNN
         h_list = []
         for t in range(T):
-            h_t = self.gnn(X[:, t, :, :], A)  # (B, N, H)
-            h_list.append(h_t)
-        H = torch.stack(h_list, dim=1)  # (B, T, N, H)
+            h_list.append(self.gnn(X[:, t, :, :], A))
+        H = torch.stack(h_list, dim=1)  # (B, T, N, H_gnn)
 
-        # 2. Reshape to per-node sequences: (B*N, T, H)
-        H = H.permute(0, 2, 1, 3).contiguous()  # (B, N, T, H)
-        H = H.view(B * N, T, self.gnn_hidden)
+        # Reshape to per-node sequences → (B*N, T, H_gnn)
+        H = H.permute(0, 2, 1, 3).contiguous().view(B * N, T, self.gnn_hidden)
 
-        # 3. LSTM — take last hidden state
-        lstm_out, _ = self.lstm(H)         # (B*N, T, H_lstm)
-        lstm_last = lstm_out[:, -1, :]     # (B*N, H_lstm)
-        lstm_last = self.dropout(lstm_last)
+        # Temporal encoding → (B*N, H_temporal)
+        h_temporal = self.temporal(H)
 
-        # 4. Predict
-        out = self.fc(lstm_last).squeeze(-1)  # (B*N,)
-        out = out.view(B, N)                  # (B, N)
+        # Predict → (B, N)
+        out = self.fc(h_temporal).squeeze(-1).view(B, N)
         return out

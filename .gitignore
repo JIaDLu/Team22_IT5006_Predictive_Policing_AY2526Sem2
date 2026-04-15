@@ -210,3 +210,4 @@ data/origin/
 logs/
 checkpoints/
 data/exp_data/
+wandb/

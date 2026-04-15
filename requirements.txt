@@ -4,3 +4,5 @@ numpy==2.4.4
 torch==2.11.0+cu130
 scikit-learn==1.8.0
 scipy==1.17.1
+wandb==0.26.0
+weave==0.52.36
