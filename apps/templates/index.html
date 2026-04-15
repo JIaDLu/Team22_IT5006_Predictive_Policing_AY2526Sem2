@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crime Prediction — Generalization Testing</title>
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --bg:          #FAF9F7;
+            --surface:     #FFFFFF;
+            --border:      #E8E4DF;
+            --text:        #2D2A26;
+            --text-muted:  #8A837A;
+            --accent:      #C07A50;
+            --accent-soft: #E8C9B0;
+            --blue:        #6B8EAE;
+            --green:       #7AA876;
+            --red-soft:    #C4756A;
+            --shadow:      0 1px 3px rgba(45,42,38,0.06), 0 1px 2px rgba(45,42,38,0.04);
+            --shadow-lg:   0 4px 12px rgba(45,42,38,0.08), 0 2px 4px rgba(45,42,38,0.04);
+            --radius:      10px;
+            --font-body:   'DM Sans', sans-serif;
+            --font-display:'Source Serif 4', Georgia, serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ---- Header ---- */
+        .header {
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+        .header-icon {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-soft));
+            border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 600; font-size: 16px;
+        }
+        .header h1 {
+            font-family: var(--font-display);
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+        .header .subtitle {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        /* ---- Layout ---- */
+        .main {
+            display: flex;
+            height: calc(100vh - 73px);
+        }
+
+        /* ---- Sidebar ---- */
+        .sidebar {
+            width: 340px;
+            min-width: 340px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+
+        .card {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+        }
+        .card-title {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            margin-bottom: 6px;
+        }
+
+        select, button {
+            width: 100%;
+            font-family: var(--font-body);
+            font-size: 14px;
+            border-radius: 8px;
+            outline: none;
+            transition: all 0.15s ease;
+        }
+        select {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238A837A' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+        select:hover { border-color: var(--accent-soft); }
+        select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(192,122,80,0.12); }
+        select:disabled { opacity: 0.45; cursor: not-allowed; }
+
+        .btn-predict {
+            padding: 12px;
+            border: none;
+            background: var(--accent);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            letter-spacing: 0.3px;
+        }
+        .btn-predict:hover { background: #b06e45; }
+        .btn-predict:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+
+        /* Stats cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px;
+            text-align: center;
+        }
+        .stat-value {
+            font-family: var(--font-display);
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+        .stat-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Status bar */
+        .status {
+            font-size: 13px;
+            color: var(--text-muted);
+            padding: 10px 0;
+            min-height: 20px;
+        }
+        .status.loading { color: var(--accent); }
+        .status.error { color: var(--red-soft); }
+
+        /* Spacer */
+        .spacer { flex: 1; }
+
+        .info-footer {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            border-top: 1px solid var(--border);
+            padding-top: 14px;
+        }
+
+        /* ---- Map ---- */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Leaflet popup override */
+        .leaflet-popup-content-wrapper {
+            border-radius: var(--radius) !important;
+            box-shadow: var(--shadow-lg) !important;
+            font-family: var(--font-body);
+        }
+        .leaflet-popup-content {
+            margin: 14px 16px !important;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .popup-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+        .popup-row { display: flex; justify-content: space-between; gap: 16px; }
+        .popup-label { color: var(--text-muted); }
+        .popup-val { font-weight: 600; }
+        .popup-val.pred { color: var(--accent); }
+        .popup-val.actual { color: var(--blue); }
+
+        /* Bar marker */
+        .bar-marker {
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+        }
+        .bar-col {
+            width: 8px;
+            border-radius: 2px 2px 0 0;
+            min-height: 2px;
+            transition: height 0.3s ease;
+        }
+        .bar-pred { background: var(--accent); }
+        .bar-actual { background: var(--blue); opacity: 0.7; }
+
+        /* Legend */
+        .map-legend {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            z-index: 1000;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 16px;
+            box-shadow: var(--shadow);
+            font-size: 12px;
+        }
+        .legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(250,249,247,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(2px);
+        }
+        .loading-overlay.active { display: flex; }
+        .spinner {
+            width: 32px; height: 32px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div class="header-icon">CP</div>
+        <h1>Crime Prediction</h1>
+        <span class="subtitle">NIBRS Generalization Testing</span>
+    </div>
+
+    <div class="main">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="card">
+                <div class="card-title">Data Source</div>
+                <label for="dataset-select">NIBRS Dataset</label>
+                <select id="dataset-select">
+                    <option value="">Select a dataset…</option>
+                </select>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Prediction Target</div>
+                <label for="date-select">Date</label>
+                <select id="date-select" disabled>
+                    <option value="">Select dataset first…</option>
+                </select>
+                <div style="height:12px"></div>
+                <button class="btn-predict" id="btn-predict" disabled>Run Prediction</button>
+            </div>
+
+            <div class="status" id="status"></div>
+
+            <div class="card" id="stats-card" style="display:none">
+                <div class="card-title">Results Summary</div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-agencies">—</div>
+                        <div class="stat-label">Agencies</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total">—</div>
+                        <div class="stat-label">Total Predicted</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-max">—</div>
+                        <div class="stat-label">Max (Agency)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-date">—</div>
+                        <div class="stat-label">Target Date</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="spacer"></div>
+
+            <div class="info-footer">
+                Model: Baseline-GRU (trained on Chicago 2015–2024).<br>
+                Generalization test on NIBRS incident data across different states and regions.
+            </div>
+        </div>
+
+        <!-- Map -->
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="loading-overlay" id="loading-overlay">
+                <div class="spinner"></div>
+            </div>
+            <div class="map-legend" id="map-legend" style="display:none">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:var(--accent)"></div>
+                    <span>Predicted crime count</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:var(--blue)"></div>
+                    <span>Actual crime count</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// ============================================================
+// State
+// ============================================================
+let map, markerLayer;
+let currentAgencies = [];
+
+// ============================================================
+// Map initialization
+// ============================================================
+function initMap() {
+    map = L.map('map', {
+        zoomControl: true,
+        attributionControl: false,
+    }).setView([39.83, -98.58], 4);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 18,
+    }).addTo(map);
+
+    markerLayer = L.layerGroup().addTo(map);
+}
+
+// ============================================================
+// API helpers
+// ============================================================
+async function fetchJSON(url, opts) {
+    const res = await fetch(url, opts);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+}
+
+function setStatus(msg, cls = '') {
+    const el = document.getElementById('status');
+    el.textContent = msg;
+    el.className = 'status ' + cls;
+}
+
+function setLoading(on) {
+    document.getElementById('loading-overlay').classList.toggle('active', on);
+}
+
+// ============================================================
+// Load datasets
+// ============================================================
+async function loadDatasets() {
+    try {
+        const data = await fetchJSON('/api/datasets');
+        const sel = document.getElementById('dataset-select');
+        sel.innerHTML = '<option value="">Select a dataset…</option>';
+        data.datasets.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = d;
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        setStatus('Failed to load datasets: ' + e.message, 'error');
+    }
+}
+
+// ============================================================
+// Load dates for a dataset
+// ============================================================
+async function loadDates(dataset) {
+    const dateSel = document.getElementById('date-select');
+    const btn = document.getElementById('btn-predict');
+    dateSel.disabled = true;
+    btn.disabled = true;
+    dateSel.innerHTML = '<option value="">Loading…</option>';
+
+    setLoading(true);
+    try {
+        setStatus('Loading dataset…', 'loading');
+        const data = await fetchJSON(`/api/dates?dataset=${encodeURIComponent(dataset)}`);
+
+        // Move map to state
+        if (data.center) {
+            map.setView([data.center.lat, data.center.lon], 6, { animate: true });
+        }
+
+        // Populate date dropdown
+        dateSel.innerHTML = '<option value="">Select a date…</option>';
+        // Show last 90 dates for usability
+        const dates = data.dates.slice(-90);
+        dates.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d;
+            opt.textContent = d;
+            dateSel.appendChild(opt);
+        });
+        dateSel.disabled = false;
+        setStatus(`${data.dates.length} dates available for ${dataset}`);
+    } catch (e) {
+        setStatus('Failed to load dates: ' + e.message, 'error');
+    } finally {
+        setLoading(false);
+    }
+}
+
+// ============================================================
+// Run prediction
+// ============================================================
+async function runPrediction() {
+    const dataset = document.getElementById('dataset-select').value;
+    const date = document.getElementById('date-select').value;
+    if (!dataset || !date) return;
+
+    setLoading(true);
+    setStatus('Running inference…', 'loading');
+
+    try {
+        const data = await fetchJSON('/api/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dataset, date }),
+        });
+
+        currentAgencies = data.agencies;
+        renderResults(data);
+        setStatus(`Prediction complete for ${date}`);
+    } catch (e) {
+        setStatus('Prediction failed: ' + e.message, 'error');
+    } finally {
+        setLoading(false);
+    }
+}
+
+// ============================================================
+// Render bar-chart markers on map
+// ============================================================
+function renderResults(data) {
+    markerLayer.clearLayers();
+    document.getElementById('map-legend').style.display = '';
+    document.getElementById('stats-card').style.display = '';
+
+    const agencies = data.agencies.filter(a => a.latitude && a.longitude);
+    const maxVal = Math.max(1, ...agencies.map(a => Math.max(a.predicted || 0, a.actual || 0)));
+    const MAX_BAR_H = 48;
+
+    agencies.forEach(a => {
+        const predH = Math.max(2, (a.predicted / maxVal) * MAX_BAR_H);
+        const actH = a.actual != null ? Math.max(2, (a.actual / maxVal) * MAX_BAR_H) : 0;
+        const totalW = a.actual != null ? 20 : 10;
+
+        const html = `
+            <div class="bar-marker" style="height:${MAX_BAR_H}px; width:${totalW}px;">
+                <div class="bar-col bar-pred" style="height:${predH}px;" title="Predicted: ${a.predicted}"></div>
+                ${a.actual != null ? `<div class="bar-col bar-actual" style="height:${actH}px;" title="Actual: ${a.actual}"></div>` : ''}
+            </div>`;
+
+        const icon = L.divIcon({
+            html: html,
+            className: '',
+            iconSize: [totalW, MAX_BAR_H],
+            iconAnchor: [totalW / 2, MAX_BAR_H],
+        });
+
+        const marker = L.marker([a.latitude, a.longitude], { icon });
+
+        const popupContent = `
+            <div class="popup-name">${a.agency_name}</div>
+            <div class="popup-row">
+                <span class="popup-label">Predicted</span>
+                <span class="popup-val pred">${a.predicted.toFixed(1)}</span>
+            </div>
+            ${a.actual != null ? `
+            <div class="popup-row">
+                <span class="popup-label">Actual</span>
+                <span class="popup-val actual">${a.actual.toFixed(1)}</span>
+            </div>` : ''}
+            <div class="popup-row">
+                <span class="popup-label">Region</span>
+                <span class="popup-val">#${a.region_id}</span>
+            </div>`;
+
+        marker.bindPopup(popupContent, { maxWidth: 220 });
+        markerLayer.addLayer(marker);
+    });
+
+    // Update stats
+    document.getElementById('stat-agencies').textContent = agencies.length;
+    document.getElementById('stat-total').textContent = (data.total_predicted || 0).toFixed(0);
+    const maxAgency = agencies.reduce((a, b) => (a.predicted > b.predicted ? a : b), agencies[0]);
+    document.getElementById('stat-max').textContent = maxAgency ? maxAgency.predicted.toFixed(1) : '—';
+    document.getElementById('stat-date').textContent = data.target_date;
+}
+
+// ============================================================
+// Event listeners
+// ============================================================
+document.getElementById('dataset-select').addEventListener('change', e => {
+    markerLayer.clearLayers();
+    document.getElementById('map-legend').style.display = 'none';
+    document.getElementById('stats-card').style.display = 'none';
+    if (e.target.value) {
+        loadDates(e.target.value);
+    } else {
+        document.getElementById('date-select').innerHTML = '<option value="">Select dataset first…</option>';
+        document.getElementById('date-select').disabled = true;
+        document.getElementById('btn-predict').disabled = true;
+    }
+});
+
+document.getElementById('date-select').addEventListener('change', e => {
+    document.getElementById('btn-predict').disabled = !e.target.value;
+});
+
+document.getElementById('btn-predict').addEventListener('click', runPrediction);
+
+// ============================================================
+// Init
+// ============================================================
+initMap();
+loadDatasets();
+</script>
+</body>
+</html>
