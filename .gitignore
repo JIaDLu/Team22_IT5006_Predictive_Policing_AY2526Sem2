@@ -207,7 +207,9 @@ marimo/_lsp/
 __marimo__/
 
 data/origin/
+data/NIBRS/
 logs/
 checkpoints/
 data/exp_data/
 wandb/
+results/

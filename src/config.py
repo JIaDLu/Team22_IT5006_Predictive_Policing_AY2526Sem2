@@ -73,7 +73,7 @@ WINDOW_SIZE = 7
 # ============================================================
 # Adjacency matrix
 # ============================================================
-KNN_K = 5
+KNN_K = 10
 
 # ============================================================
 # Model hyperparameters
@@ -90,7 +90,7 @@ MHA_NUM_HEADS = 4
 BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
 WEIGHT_DECAY = 1e-5
-NUM_EPOCHS = 50
+NUM_EPOCHS = 100
 PATIENCE = 10
 GRAD_CLIP_MAX_NORM = 5.0
 HUBER_DELTA = 1.0
